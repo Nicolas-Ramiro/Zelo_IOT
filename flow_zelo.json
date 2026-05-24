@@ -1,0 +1,224 @@
+[
+    {
+        "id": "zelo_tab",
+        "type": "tab",
+        "label": "Zelo IoT Dashboard Final",
+        "disabled": false,
+        "info": "Fluxo de monitoramento de saúde pet com alertas de urgência"
+    },
+    {
+        "id": "thingspeak_in",
+        "type": "http request",
+        "z": "zelo_tab",
+        "name": "Get ThingSpeak Data",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.thingspeak.com/channels/3392211/feeds.json?api_key=D3R9TBYRMB74N8I0&results=1",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 170,
+        "y": 120,
+        "wires": [
+            [
+                "process_data"
+            ]
+        ]
+    },
+    {
+        "id": "inject_timer",
+        "type": "inject",
+        "z": "zelo_tab",
+        "name": "A cada 20s",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "20",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 60,
+        "wires": [
+            [
+                "thingspeak_in"
+            ]
+        ]
+    },
+    {
+        "id": "process_data",
+        "type": "function",
+        "z": "zelo_tab",
+        "name": "Processar Canais",
+        "func": "if (!msg.payload.feeds || msg.payload.feeds.length === 0) {\n    return null;\n}\n\nconst feed = msg.payload.feeds[0];\nconst temp = parseFloat(feed.field1) || 0;\nconst humi = parseFloat(feed.field2) || 0;\nconst heart = parseInt(feed.field3) || 0;\n\n// Criar mensagens separadas para cada gauge (para evitar o texto sobreposto)\nconst msgTemp = { payload: temp };\nconst msgHumi = { payload: humi };\nconst msgHeart = { payload: heart };\n\n// Lógica de Urgência\nlet status = \"\";\nlet color = \"white\";\n\nif (heart > 150 || temp > 39) {\n    status = \"Urgencia Alta 🚨 EMERGÊNCIA: Sinais vitais críticos detectados!\";\n    color = \"red\";\n} else if (heart > 120 || temp > 38.5) {\n    status = \"Urgencia media ⚠️ ATENÇÃO: Alteração leve nos sinais vitais.\";\n    color = \"orange\";\n} else {\n    status = \"Urgencia baixa ✅ Sinais vitais dentro da normalidade.\";\n    color = \"green\";\n}\n\nconst msgStatus = { payload: status, color: color };\n\nreturn [msgTemp, msgHumi, msgHeart, msgStatus];",
+        "outputs": 4,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 120,
+        "wires": [
+            [
+                "gauge_temp"
+            ],
+            [
+                "gauge_humi"
+            ],
+            [
+                "gauge_heart"
+            ],
+            [
+                "text_urgencia",
+                "debug_zelo"
+            ]
+        ]
+    },
+    {
+        "id": "gauge_temp",
+        "type": "ui_gauge",
+        "z": "zelo_tab",
+        "name": "",
+        "group": "zelo_group",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Temperatura (°C)",
+        "label": "Pet",
+        "format": "{{value}}",
+        "min": "30",
+        "max": "45",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "38.5",
+        "seg2": "39.5",
+        "diff": false,
+        "className": "",
+        "x": 670,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "gauge_humi",
+        "type": "ui_gauge",
+        "z": "zelo_tab",
+        "name": "",
+        "group": "zelo_group",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Umidade (%)",
+        "label": "Ambiente",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#ca3838",
+            "#e6e600",
+            "#00b500"
+        ],
+        "seg1": "30",
+        "seg2": "70",
+        "diff": false,
+        "className": "",
+        "x": 670,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "gauge_heart",
+        "type": "ui_gauge",
+        "z": "zelo_tab",
+        "name": "",
+        "group": "zelo_group",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Batimentos (BPM)",
+        "label": "Coração",
+        "format": "{{value}}",
+        "min": "40",
+        "max": "200",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "120",
+        "seg2": "150",
+        "diff": false,
+        "className": "",
+        "x": 670,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "text_urgencia",
+        "type": "ui_text",
+        "z": "zelo_tab",
+        "group": "zelo_group",
+        "order": 4,
+        "width": 6,
+        "height": 2,
+        "name": "",
+        "label": "Status de Urgência:",
+        "format": "<div style='color:{{msg.color}}; font-weight:bold;'>{{msg.payload}}</div>",
+        "layout": "col-center",
+        "className": "",
+        "x": 670,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "debug_zelo",
+        "type": "debug",
+        "z": "zelo_tab",
+        "name": "Log Zelo",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 640,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "zelo_group",
+        "type": "ui_group",
+        "name": "Monitoramento Zelo",
+        "tab": "zelo_ui_tab",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "zelo_ui_tab",
+        "type": "ui_tab",
+        "name": "Zelo Dashboard",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]
